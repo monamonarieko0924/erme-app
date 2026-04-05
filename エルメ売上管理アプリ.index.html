@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>エルメ講座 売上管理アプリ</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --blue: #1a73e8;
+    --blue-light: #e8f0fe;
+    --blue-dark: #1558b0;
+    --green: #0f6e56;
+    --green-light: #e1f5ee;
+    --text: #1a1a2e;
+    --text-sub: #5f6368;
+    --text-hint: #9aa0a6;
+    --bg: #f8f9fa;
+    --surface: #ffffff;
+    --border: rgba(0,0,0,0.1);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ===== HEADER ===== */
+  .app-header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .app-header h1 { font-size: 16px; font-weight: 700; color: var(--blue); letter-spacing: -0.3px; }
+  .app-header span { font-size: 12px; color: var(--text-hint); }
+
+  /* ===== MAIN ===== */
+  .main { max-width: 1100px; margin: 0 auto; padding: 1.5rem 1.5rem 4rem; }
+
+  /* ===== INPUT SECTION ===== */
+  .input-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+  .input-card label { font-size: 12px; font-weight: 500; color: var(--text-sub); display: block; margin-bottom: 8px; }
+  .input-card textarea {
+    width: 100%;
+    min-height: 80px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    resize: vertical;
+    outline: none;
+    line-height: 1.5;
+    transition: border-color 0.2s;
+  }
+  .input-card textarea:focus { border-color: var(--blue); }
+  .input-card textarea::placeholder { color: var(--text-hint); }
+
+  .btn-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .btn {
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 18px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    transition: all 0.15s;
+  }
+  .btn:hover { background: var(--bg); }
+  .btn.primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .btn.primary:hover { background: var(--blue-dark); }
+  .btn.ghost { color: var(--text-sub); }
+
+  /* ===== FILTER BAR ===== */
+  .filter-bar {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 12px 16px;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .filter-bar label { font-size: 12px; font-weight: 500; color: var(--text-sub); }
+  .filter-bar select {
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 13px;
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    cursor: pointer;
+    outline: none;
+  }
+  .filter-bar select:focus { border-color: var(--blue); }
+  .badge {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 12px;
+    border-radius: 99px;
+    background: var(--blue-light);
+    color: var(--blue);
+  }
+
+  /* ===== METRICS ===== */
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin-bottom: 1.25rem;
+  }
+  .metric {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 14px 16px;
+  }
+  .metric .m-label { font-size: 11px; color: var(--text-sub); margin-bottom: 6px; }
+  .metric .m-value { font-size: 22px; font-weight: 700; color: var(--text); line-height: 1; }
+  .metric .m-sub { font-size: 11px; color: var(--text-hint); margin-top: 4px; }
+  .metric.accent { background: var(--blue); border-color: var(--blue); }
+  .metric.accent .m-label { color: rgba(255,255,255,0.7); }
+  .metric.accent .m-value { color: #fff; }
+  .metric.accent .m-sub { color: rgba(255,255,255,0.6); }
+
+  /* ===== TABS ===== */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.25rem;
+    background: var(--surface);
+    border-radius: var(--radius) var(--radius) 0 0;
+    border: 1px solid var(--border);
+    border-bottom: none;
+    overflow: hidden;
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 12px 8px;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--text-sub);
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+  }
+  .tab-btn:hover { background: var(--bg); }
+  .tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); background: var(--surface); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ===== CHARTS ===== */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  @media (max-width: 640px) { .charts-grid { grid-template-columns: 1fr; } }
+  .chart-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 1rem 1.25rem;
+  }
+  .chart-card.full { grid-column: 1 / -1; }
+  .chart-title { font-size: 12px; font-weight: 500; color: var(--text-sub); margin-bottom: 12px; }
+
+  /* ===== TABLE ===== */
+  .table-section {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .table-toolbar {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .table-toolbar input, .table-toolbar select {
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+  }
+  .table-toolbar input { flex: 1; min-width: 160px; }
+  .table-toolbar input:focus, .table-toolbar select:focus { border-color: var(--blue); }
+  .section-label { font-size: 12px; font-weight: 500; color: var(--text-sub); padding: 12px 16px 0; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th {
+    text-align: left;
+    padding: 9px 12px;
+    background: var(--blue);
+    color: #fff;
+    font-weight: 500;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    white-space: nowrap;
+  }
+  tr:nth-child(even) td { background: var(--bg); }
+  tr:last-child td { border-bottom: none; }
+  .total-row td { font-weight: 700; background: var(--blue-light) !important; color: var(--blue); }
+
+  /* ===== EMPTY STATE ===== */
+  .empty {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--text-hint);
+  }
+  .empty .icon { font-size: 48px; margin-bottom: 1rem; }
+  .empty p { font-size: 14px; line-height: 1.7; }
+
+  #dashboard { display: none; }
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <h1>📊 エルメ講座 売上管理アプリ</h1>
+  <span>スタッフ共有版</span>
+</div>
+
+<div class="main">
+
+  <!-- INPUT -->
+  <div class="input-card">
+    <label>スプレッドシートのデータを貼り付けてください（セルを選択してCtrl+C → Ctrl+V）</label>
+    <textarea id="csvInput" placeholder="ID	タイムスタンプ	予約（来店）日	予約開始時間	予約終了時間	ステータス	コース	お客様名（LINE名）…"></textarea>
+    <div class="btn-row">
+      <button class="btn primary" onclick="analyzeData()">📥 分析する</button>
+      <button class="btn ghost" onclick="loadSample()">サンプルで試す</button>
+      <button class="btn ghost" onclick="clearAll()">クリア</button>
+    </div>
+  </div>
+
+  <!-- EMPTY STATE -->
+  <div id="emptyState">
+    <div class="empty">
+      <div class="icon">📋</div>
+      <p>スプレッドシートからデータをコピーして<br>「分析する」ボタンを押してください</p>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard">
+
+    <!-- FILTER -->
+    <div class="filter-bar">
+      <label>月フィルター：</label>
+      <select id="monthFilter" onchange="applyFilter()">
+        <option value="">全期間</option>
+      </select>
+      <span class="badge" id="filterBadge">全件表示中</span>
+    </div>
+
+    <!-- METRICS -->
+    <div class="metrics" id="metricsArea"></div>
+
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('charts',this)">グラフ</button>
+      <button class="tab-btn" onclick="switchTab('list',this)">受講者一覧</button>
+      <button class="tab-btn" onclick="switchTab('course',this)">コース別</button>
+      <button class="tab-btn" onclick="switchTab('monthly',this)">月別推移</button>
+    </div>
+
+    <!-- CHARTS TAB -->
+    <div class="tab-content active" id="tab-charts">
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-title">申込件数</div>
+          <div style="position:relative;height:220px"><canvas id="countChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">コース別売上割合</div>
+          <div style="position:relative;height:220px"><canvas id="pieChart"></canvas></div>
+        </div>
+        <div class="chart-card full">
+          <div class="chart-title">売上金額（円）</div>
+          <div style="position:relative;height:200px"><canvas id="revenueChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LIST TAB -->
+    <div class="tab-content" id="tab-list">
+      <div class="table-section">
+        <div class="table-toolbar">
+          <input type="text" id="searchInput" placeholder="名前・コース・メールで絞り込み" oninput="renderList()">
+          <select id="courseFilter" onchange="renderList()"><option value="">全コース</option></select>
+        </div>
+        <div class="section-label" id="listLabel">受講者一覧</div>
+        <div class="table-wrap"><table id="listTable"></table></div>
+      </div>
+    </div>
+
+    <!-- COURSE TAB -->
+    <div class="tab-content" id="tab-course">
+      <div class="table-section">
+        <div class="section-label">コース別売上内訳</div>
+        <div class="table-wrap"><table id="courseTable"></table></div>
+      </div>
+    </div>
+
+    <!-- MONTHLY TAB -->
+    <div class="tab-content" id="tab-monthly">
+      <div class="table-section">
+        <div class="section-label">月別売上推移</div>
+        <div class="table-wrap"><table id="monthlyTable"></table></div>
+      </div>
+    </div>
+
+  </div><!-- /dashboard -->
+</div><!-- /main -->
+
+<script>
+let allData = [], filtered = [], charts = {};
+
+// ===== 日付パーサー（曜日カッコ対応）=====
+function parseDate(str) {
+  if (!str) return null;
+  let s = String(str).replace(/[（）\(\)月火水木金土日\u3000]/g,' ').trim();
+  s = s.replace(/\./g,'/').replace(/\s+/g,' ').trim();
+  const m = s.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})/);
+  if (m) {
+    const d = new Date(+m[1], +m[2]-1, +m[3]);
+    if (!isNaN(d.getTime())) return d;
+  }
+  const d2 = new Date(s);
+  return isNaN(d2.getTime()) ? null : d2;
+}
+
+function getYM(d) {
+  if (!d) return '不明';
+  return d.getFullYear()+'年'+(d.getMonth()+1)+'月';
+}
+
+function parseAmount(v) {
+  if (!v || v==='-') return 0;
+  return parseInt(String(v).replace(/[^\d]/g,'')) || 0;
+}
+
+function parseTSV(raw) {
+  const lines = raw.trim().split('\n').filter(l=>l.trim());
+  if (lines.length < 2) return [];
+  const rows = [];
+  for (let i=1; i<lines.length; i++) {
+    const c = lines[i].split('\t');
+    if (c.length < 6) continue;
+    rows.push({
+      tsRaw: c[1]||'', tsDate: parseDate(c[1]),
+      courseDate: c[2]||'', status: c[5]||'',
+      course: c[6]||'', lineName: c[7]||'',
+      systemName: c[8]||'', amount: parseAmount(c[9]),
+      paymentStatus: c[10]||'', realName: c[11]||'',
+      email: c[12]||'', phone: c[13]||'',
+    });
+  }
+  return rows;
+}
+
+function analyzeData() {
+  const raw = document.getElementById('csvInput').value;
+  if (!raw.trim()) { alert('データを貼り付けてください'); return; }
+  allData = parseTSV(raw);
+  if (!allData.length) { alert('データを読み取れませんでした。スプレッドシートのセルを選択してCtrl+Cでコピーし、貼り付けてください。'); return; }
+
+  const monthSet = new Set();
+  allData.forEach(r => { const ym=getYM(r.tsDate); if(ym!=='不明') monthSet.add(ym); });
+  const months = [...monthSet].sort();
+
+  const mf = document.getElementById('monthFilter');
+  mf.innerHTML = '<option value="">全期間</option>' + months.map(m=>`<option value="${m}">${m}</option>`).join('');
+
+  const now = new Date();
+  const curYM = now.getFullYear()+'年'+(now.getMonth()+1)+'月';
+  if (months.includes(curYM)) mf.value = curYM;
+
+  document.getElementById('emptyState').style.display='none';
+  document.getElementById('dashboard').style.display='block';
+  applyFilter();
+}
+
+function applyFilter() {
+  const sel = document.getElementById('monthFilter').value;
+  filtered = sel ? allData.filter(r=>getYM(r.tsDate)===sel) : [...allData];
+  const badge = document.getElementById('filterBadge');
+  badge.textContent = sel ? `${sel}：${filtered.length}件` : `全期間：${filtered.length}件`;
+
+  const courses = [...new Set(filtered.map(r=>r.course).filter(Boolean))].sort();
+  const cf = document.getElementById('courseFilter');
+  cf.innerHTML = '<option value="">全コース</option>'+courses.map(c=>`<option value="${c}">${c}</option>`).join('');
+
+  renderMetrics();
+  renderCharts();
+  renderList();
+  renderCourseTable();
+  renderMonthlyTable();
+}
+
+function renderMetrics() {
+  const d = filtered;
+  const total = d.reduce((s,r)=>s+r.amount,0);
+  const paid = d.filter(r=>r.amount>0);
+  const avg = paid.length ? Math.round(total/paid.length) : 0;
+  const courses = new Set(d.map(r=>r.course).filter(Boolean));
+  const names = new Set(d.map(r=>r.realName||r.systemName||r.lineName).filter(Boolean));
+  document.getElementById('metricsArea').innerHTML = `
+    <div class="metric"><div class="m-label">総申込件数</div><div class="m-value">${d.length}</div><div class="m-sub">件</div></div>
+    <div class="metric"><div class="m-label">有料申込</div><div class="m-value">${paid.length}</div><div class="m-sub">件</div></div>
+    <div class="metric accent"><div class="m-label">売上合計</div><div class="m-value">¥${total.toLocaleString()}</div></div>
+    <div class="metric"><div class="m-label">平均単価</div><div class="m-value">¥${avg.toLocaleString()}</div></div>
+    <div class="metric"><div class="m-label">ユニーク受講者</div><div class="m-value">${names.size}</div><div class="m-sub">人</div></div>
+    <div class="metric"><div class="m-label">コース数</div><div class="m-value">${courses.size}</div><div class="m-sub">種類</div></div>
+  `;
+}
+
+const COLORS = ['#1a73e8','#0f6e56','#d85a30','#d4537e','#ba7517','#639922','#e24b4a','#7f77dd','#534ab7','#185fa5'];
+
+function renderCharts() {
+  const d = filtered;
+  const sel = document.getElementById('monthFilter').value;
+  ['countChart','revenueChart','pieChart'].forEach(id=>{ if(charts[id]){charts[id].destroy();delete charts[id];} });
+
+  if (sel) {
+    const cm={}, rm={};
+    d.forEach(r=>{ const c=r.course||'未設定'; cm[c]=(cm[c]||0)+1; rm[c]=(rm[c]||0)+r.amount; });
+    const cKeys=Object.keys(cm).sort((a,b)=>cm[b]-cm[a]);
+    charts.countChart = new Chart(document.getElementById('countChart'),{type:'bar',data:{labels:cKeys,datasets:[{data:cKeys.map(k=>cm[k]),backgroundColor:COLORS,borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:10},maxRotation:45,autoSkip:false}},y:{ticks:{font:{size:10},stepSize:1}}}}});
+    charts.revenueChart = new Chart(document.getElementById('revenueChart'),{type:'bar',data:{labels:cKeys,datasets:[{data:cKeys.map(k=>rm[k]||0),backgroundColor:'#0f6e56',borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:10},maxRotation:45,autoSkip:false}},y:{ticks:{font:{size:10},callback:v=>'¥'+v.toLocaleString()}}}}});
+  } else {
+    const mm={};
+    d.forEach(r=>{ const ym=getYM(r.tsDate); if(ym==='不明')return; if(!mm[ym])mm[ym]={count:0,revenue:0}; mm[ym].count++;mm[ym].revenue+=r.amount; });
+    const months=Object.keys(mm).sort();
+    charts.countChart = new Chart(document.getElementById('countChart'),{type:'bar',data:{labels:months,datasets:[{data:months.map(m=>mm[m].count),backgroundColor:'#1a73e8',borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:10},autoSkip:false,maxRotation:45}},y:{ticks:{font:{size:10},stepSize:1}}}}});
+    charts.revenueChart = new Chart(document.getElementById('revenueChart'),{type:'bar',data:{labels:months,datasets:[{data:months.map(m=>mm[m].revenue),backgroundColor:'#0f6e56',borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:10},autoSkip:false,maxRotation:45}},y:{ticks:{font:{size:10},callback:v=>'¥'+v.toLocaleString()}}}}});
+  }
+
+  const cm2={};
+  d.forEach(r=>{ const c=r.course||'未設定'; cm2[c]=(cm2[c]||0)+r.amount; });
+  const cKeys2=Object.keys(cm2).sort((a,b)=>cm2[b]-cm2[a]).slice(0,8);
+  charts.pieChart = new Chart(document.getElementById('pieChart'),{type:'doughnut',data:{labels:cKeys2,datasets:[{data:cKeys2.map(k=>cm2[k]),backgroundColor:COLORS.slice(0,cKeys2.length),borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:10},boxWidth:10,padding:8}}}}});
+}
+
+function renderList() {
+  const q=(document.getElementById('searchInput').value||'').toLowerCase();
+  const cf=document.getElementById('courseFilter').value;
+  let d=[...filtered].sort((a,b)=>(b.tsDate||0)-(a.tsDate||0));
+  if(q) d=d.filter(r=>(r.realName+r.lineName+r.course+r.email).toLowerCase().includes(q));
+  if(cf) d=d.filter(r=>r.course===cf);
+  document.getElementById('listLabel').textContent=`受講者一覧（${d.length}件）`;
+  document.getElementById('listTable').innerHTML=
+    `<thead><tr>${['申込日時','本名','LINE名','コース名','講座日程','金額','決済','メール','電話'].map(h=>`<th>${h}</th>`).join('')}</tr></thead>`+
+    '<tbody>'+d.map(r=>`<tr>
+      <td>${r.tsDate?r.tsDate.toLocaleDateString('ja-JP'):r.tsRaw}</td>
+      <td>${r.realName||r.systemName||''}</td>
+      <td>${r.lineName||''}</td>
+      <td>${r.course||''}</td>
+      <td>${r.courseDate||''}</td>
+      <td>${r.amount>0?'¥'+r.amount.toLocaleString():'-'}</td>
+      <td>${r.paymentStatus||''}</td>
+      <td>${r.email||''}</td>
+      <td>${r.phone||''}</td>
+    </tr>`).join('')+'</tbody>';
+}
+
+function renderCourseTable() {
+  const d=filtered, cm={};
+  d.forEach(r=>{ const c=r.course||'未設定'; if(!cm[c])cm[c]={count:0,total:0,members:new Set()}; cm[c].count++;cm[c].total+=r.amount; cm[c].members.add(r.realName||r.systemName||r.lineName||'不明'); });
+  const entries=Object.entries(cm).sort((a,b)=>b[1].total-a[1].total);
+  const gt=entries.reduce((s,[,d])=>s+d.total,0);
+  const gc=entries.reduce((s,[,d])=>s+d.count,0);
+  document.getElementById('courseTable').innerHTML=
+    `<thead><tr>${['コース名','申込件数','ユニーク受講者','売上合計','平均単価','割合'].map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`+
+    entries.map(([c,d])=>{const avg=d.count?Math.round(d.total/d.count):0;const pct=gt?Math.round(d.total/gt*100):0;return`<tr><td>${c}</td><td>${d.count}</td><td>${d.members.size}</td><td>¥${d.total.toLocaleString()}</td><td>¥${avg.toLocaleString()}</td><td>${pct}%</td></tr>`;}).join('')+
+    `<tr class="total-row"><td>合計</td><td>${gc}</td><td>-</td><td>¥${gt.toLocaleString()}</td><td>-</td><td>100%</td></tr></tbody>`;
+}
+
+function renderMonthlyTable() {
+  const d=allData, mm={};
+  d.forEach(r=>{ const ym=getYM(r.tsDate); if(ym==='不明')return; if(!mm[ym])mm[ym]={count:0,paid:0,total:0}; mm[ym].count++; if(r.amount>0){mm[ym].paid++;mm[ym].total+=r.amount;} });
+  const months=Object.keys(mm).sort();
+  const gt=months.reduce((s,m)=>s+mm[m].total,0);
+  const gc=months.reduce((s,m)=>s+mm[m].count,0);
+  document.getElementById('monthlyTable').innerHTML=
+    `<thead><tr>${['月','申込件数','有料件数','売上合計','平均単価'].map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`+
+    months.map(m=>{const avg=mm[m].paid?Math.round(mm[m].total/mm[m].paid):0;return`<tr><td>${m}</td><td>${mm[m].count}</td><td>${mm[m].paid}</td><td>¥${mm[m].total.toLocaleString()}</td><td>¥${avg.toLocaleString()}</td></tr>`;}).join('')+
+    `<tr class="total-row"><td>合計</td><td>${gc}</td><td>-</td><td>¥${gt.toLocaleString()}</td><td>-</td></tr></tbody>`;
+}
+
+function loadSample() {
+  document.getElementById('csvInput').value=`ID\tタイムスタンプ\t予約日\t開始\t終了\tステータス\tコース\tLINE名\tシステム名\t金額\t決済\t本名\tメール\t電話
+1\t2026.02.01（日）\t2026.02.27（金）\t20:30\t21:30\t予約確定\tオンラインcafe-2/27\t小泉 遥\t小泉 遥\t-\t決済なし\t小泉 遥\tharuka@gmail.com\t090-0001-0001
+2\t2026.02.02（月）\t2026.02.27（金）\t20:30\t21:30\t予約確定\tオンラインcafe-2/27\t森山由希子\t森山由希子\t3500\t決済なし\t森山由希子\tyuki@gmail.com\t090-0002-0002
+3\t2026.02.11（水）\t2026.02.14（土）\t20:00\t21:00\t予約確定\t3期腸活3500-2/14\tふくちゃん\t畑中知子\t3500\t決済なし\t畑中知子\ttomo@gmail.com\t090-0003-0003
+4\t2026.03.04（水）\t2026.03.27（金）\t20:30\t21:30\t予約確定\tオンラインcafe3/27\t真木みゆき\t真木みゆき\t-\t決済なし\t真木みゆき\tmi224@gmail.com\t090-0004-0004
+5\t2026.03.07（土）\t2026.03.28（土）\t20:00\t21:00\t予約確定\t3期骨粗鬆症3500-3/28\tまさんこ\t古屋 麻起子\t3500\t決済なし\t古屋 麻起子\ttajp@gmail.com\t090-0005-0005
+6\t2026.03.12（木）\t2026.03.14（土）\t20:00\t21:00\t予約確定\t3期-睡眠3500-3/14\t小林　明美\t小林明美\t3500\t決済なし\t小林明美\tchaka@gmail.com\t080-0006-0006`;
+}
+
+function clearAll() {
+  document.getElementById('csvInput').value='';
+  document.getElementById('dashboard').style.display='none';
+  document.getElementById('emptyState').style.display='block';
+  allData=[];filtered=[];
+}
+
+function switchTab(name,el) {
+  document.querySelectorAll('.tab-btn').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-'+name).classList.add('active');
+}
+</script>
+</body>
+</html>
